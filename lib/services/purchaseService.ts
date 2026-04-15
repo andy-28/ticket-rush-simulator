@@ -142,13 +142,12 @@ async function purchaseRedisAtomic(
     }
 
     // Redis 扣減成功！
-    // 真實系統這裡會「非同步」寫入 DB 建訂單
-    // 我們為了模擬器的數據正確，同步更新 DB
+    // 用原子 decrement 同步 DB，不能用覆蓋值（會有並發問題）
     await prisma.event.updateMany({
-      where: { id: eventId },
-      data: { remaining },
+      where: { id: eventId, remaining: { gte: qty } },
+      data: { remaining: { decrement: qty } },
     });
-
+    
     return {
       result: "SUCCESS",
       userId,
