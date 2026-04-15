@@ -8,7 +8,7 @@ type QueueItem = {
   eventId: string;
   userId: string;
   qty: number;
-  strategy: "DB_ATOMIC" | "NO_LOCK";
+  strategy: "DB_ATOMIC" | "NO_LOCK" | "REDIS_ATOMIC";
   position: number;
   enqueuedAt: number;
   resolve: (result: QueuedPurchaseResult) => void;
@@ -136,7 +136,7 @@ export function enqueue(
   eventId: string,
   userId: string,
   qty: number,
-  strategy: "DB_ATOMIC" | "NO_LOCK"
+  strategy: "DB_ATOMIC" | "NO_LOCK" | "REDIS_ATOMIC"
 ): Promise<QueuedPurchaseResult> {
   return new Promise((resolve) => {
     positionCounter++;

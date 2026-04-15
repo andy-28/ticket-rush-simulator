@@ -86,7 +86,7 @@ export default function SimulatorDashboard() {
   const [simulating, setSimulating] = useState(false);
   const [total, setTotal] = useState(500);
   const [concurrency, setConcurrency] = useState(100);
-  const [strategy, setStrategy] = useState<"DB_ATOMIC" | "NO_LOCK">("DB_ATOMIC");
+  const [strategy, setStrategy] = useState<"DB_ATOMIC" | "NO_LOCK" | "REDIS_ATOMIC">("DB_ATOMIC");
   const [enableQueue, setEnableQueue] = useState(false);
   const [rateLimitPerSec, setRateLimitPerSec] = useState(50);
   const [progress, setProgress] = useState<SimProgress | null>(null);
@@ -361,12 +361,13 @@ export default function SimulatorDashboard() {
             <label className="block text-sm text-slate-600 mb-1">策略</label>
             <select
               value={strategy}
-              onChange={(e) => setStrategy(e.target.value as "DB_ATOMIC" | "NO_LOCK")}
+              onChange={(e) => setStrategy(e.target.value as "DB_ATOMIC" | "NO_LOCK" | "REDIS_ATOMIC")}
               className={inputClass}
               disabled={simulating}
             >
               <option value="DB_ATOMIC">✅ DB 原子扣減（安全）</option>
               <option value="NO_LOCK">🔥 無鎖（會超賣）</option>
+              <option value="REDIS_ATOMIC">⚡ Redis 原子扣減（最快）</option>
             </select>
           </div>
         </div>

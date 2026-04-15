@@ -1,7 +1,7 @@
 // app/api/simulate/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { executePurchase } from "@/lib/services/purchaseService";
+import { executePurchase, syncStockToRedis } from "@/lib/services/purchaseService";
 import {
   enqueue,
   setRateLimit,
@@ -104,7 +104,9 @@ export async function POST(req: NextRequest) {
         }
       }
     }
-
+    if (strategy === "REDIS_ATOMIC") {
+      await syncStockToRedis(eventId);
+    }
     io?.emit("sim:start", {
       eventId,
       total,
