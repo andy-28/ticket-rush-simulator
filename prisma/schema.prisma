@@ -1,0 +1,147 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// 1. Event：活動（也是計數器的家）
+// ============================================
+model Event {
+  id           String   @id @default(cuid())
+  name         String
+  totalTickets Int      // 設計容量（不變）
+  remaining    Int      // 🔥 熱點欄位：搶票時只動這個
+  startAt      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tickets      Ticket[]
+  configs      SimulationConfig[]
+  runs         SimulationRun[]
+
+  @@index([startAt])
+}
+
+// ============================================
+// 2. Ticket：每一張票的實體（確權用）
+// ============================================
+model Ticket {
+  id        String       @id @default(cuid())
+  eventId   String
+  event     Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  seatNo    Int          // 票的編號（1 ~ totalTickets）
+  status    TicketStatus @default(AVAILABLE)
+  
+  // 被哪個虛擬使用者買走（搶完後才寫入）
+  ownerUserId String?
+  ownerRunId  String?    // 屬於哪一次模擬
+  
+  soldAt    DateTime?
+  
+  @@unique([eventId, seatNo])
+  @@index([eventId, status])
+  @@index([ownerRunId])
+}
+
+enum TicketStatus {
+  AVAILABLE
+  SOLD
+  RESERVED  // 預留中（queue 模式會用到）
+}
+
+// ============================================
+// 3. SimulationConfig：實驗配方（沒變）
+// ============================================
+model SimulationConfig {
+  id            String   @id @default(cuid())
+  eventId       String
+  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  userCount     Int
+  minQty        Int      @default(1)
+  maxQty        Int      @default(2)
+  
+  enableQueue   Boolean  @default(false)
+  rateLimit     Int?
+  randomDelayMs Int      @default(0)
+
+  strategy      DeductStrategy @default(DB_ATOMIC)
+
+  createdAt     DateTime @default(now())
+  runs          SimulationRun[]
+}
+
+enum DeductStrategy {
+  NO_LOCK
+  DB_ATOMIC
+  DB_TRANSACTION
+  REDIS_ATOMIC
+  QUEUE
+}
+
+// ============================================
+// 4. SimulationRun：一次執行
+// ============================================
+model SimulationRun {
+  id         String   @id @default(cuid())
+  eventId    String
+  event      Event    @relation(fields: [eventId], references: [id])
+  configId   String
+  config     SimulationConfig @relation(fields: [configId], references: [id])
+
+  status     RunStatus @default(PENDING)
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  successCount  Int @default(0)
+  failCount     Int @default(0)
+  timeoutCount  Int @default(0)
+  oversoldCount Int @default(0)
+
+  attempts   PurchaseAttempt[]
+
+  @@index([eventId, status])
+}
+
+enum RunStatus {
+  PENDING
+  RUNNING
+  FINISHED
+  FAILED
+}
+
+// ============================================
+// 5. PurchaseAttempt：每次搶票的紀錄
+// ============================================
+model PurchaseAttempt {
+  id          String   @id @default(cuid())
+  runId       String
+  run         SimulationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  userId      String
+  qty         Int
+  
+  result      AttemptResult
+  reason      String?
+
+  requestedAt DateTime
+  respondedAt DateTime
+  latencyMs   Int
+
+  @@index([runId, result])
+  @@index([runId, requestedAt])
+}
+
+enum AttemptResult {
+  SUCCESS
+  FAILED
+  TIMEOUT
+  QUEUED
+}
