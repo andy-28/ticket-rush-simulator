@@ -1,7 +1,7 @@
 // app/api/events/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-
+import { redis } from "@/lib/redis";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -46,7 +46,8 @@ export async function POST(req: NextRequest) {
 
       return ev;
     });
-
+    // 同步庫存到 Redis
+    await redis.set(`ticket:stock:${event.id}`, event.totalTickets.toString());
     return NextResponse.json(event, { status: 201 });
   } catch (error) {
     console.error("[POST /api/events] error:", error);
